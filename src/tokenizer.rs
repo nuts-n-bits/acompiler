@@ -1,10 +1,31 @@
 #![allow(dead_code)]
 
+#[derive(Debug)]
 struct TokenizerWorktable {
     cursor: usize,
     text: Vec<char>,
 }
-enum Token {
+
+#[derive(Debug, PartialEq)]
+pub enum Keyword {
+    Let,
+    Fn,
+    If,
+    Else,
+    Then,
+    Import,
+    Pub,
+    Module,
+    Struct,
+    Enum,
+    Return,
+    Require,
+    External,
+    In,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Token {
     Identifier(String),
     Plus,
     PlusPlus,
@@ -36,25 +57,12 @@ enum Token {
     Rbrace,
     Comma,
     Slash,
-    KeywordLet,
-    KeywordFn,
-    KeywordIf,
-    KeywordElse,
-    KeywordThen,
-    KeywordImport,
-    KeywordPub,
-    KeywordModule,
-    KeywordStruct,
-    KeywordEnum,
-    KeywordReturn,
-    KeywordRequire,
-    KeywordExternal,
-    KeywordIn,
+    Keyword(Keyword),
     EOF,
 }
 
-impl TokenizerWorktable {
-    fn new(program_text: String) -> TokenizerWorktable {
+impl<'a> TokenizerWorktable {
+    fn new(program_text: &'a str) -> TokenizerWorktable {
         TokenizerWorktable {
             cursor: 0,
             text: program_text.chars().collect(),
@@ -63,7 +71,7 @@ impl TokenizerWorktable {
 
     fn peek(&self, offset: usize) -> Option<char> {
         let index = self.cursor + offset;
-        if index > self.text.len() {
+        if index >= self.text.len() {
             return None;
         } else {
             return Some(self.text[index]);
@@ -75,7 +83,7 @@ impl TokenizerWorktable {
     }
 }
 
-fn tokenize(program_text: String) -> Vec<Token> {
+pub fn tokenize(program_text: &str) -> Vec<Token> {
     let mut twt = TokenizerWorktable::new(program_text);
     let mut token_list: Vec<Token> = vec![];
     loop {
@@ -220,13 +228,24 @@ fn tokenize(program_text: String) -> Vec<Token> {
                 }
             }
             ch if is_can_start_ident(ch) => {
-                let ident_string = String::from(ch);
+                let mut ident_string = String::from(ch);
                 loop {
                     twt.step(1);
-                    
+                    match twt.peek(0) {
+                        Some(ch) if is_ident(ch) => ident_string.push(ch),
+                        _ => break,
+                    }
+                }
+                match Keyword::from_ident(&ident_string) {
+                    Some(keyword) => token_list.push(Token::Keyword(keyword)),
+                    _ => token_list.push(Token::Identifier(ident_string)),
                 }
             }
-
+            ' ' => twt.step(1),
+            '\t' => twt.step(1),
+            '\n' => twt.step(1),
+            '\r' => twt.step(1),
+            _ => todo!()
         }
     }
     token_list
@@ -235,8 +254,27 @@ fn tokenize(program_text: String) -> Vec<Token> {
 
 
 
-
-
+impl Keyword {
+    fn from_ident(ident: &str) -> Option<Keyword> {
+        match ident {
+            "let" => Some(Keyword::Let),
+            "fn" => Some(Keyword::Fn),
+            "if" => Some(Keyword::If),
+            "else" => Some(Keyword::Else),
+            "then" => Some(Keyword::Then),
+            "import" => Some(Keyword::Import),
+            "pub" => Some(Keyword::Pub),
+            "module" => Some(Keyword::Module),
+            "struct" => Some(Keyword::Struct),
+            "enum" => Some(Keyword::Enum),
+            "return" => Some(Keyword::Return),
+            "require" => Some(Keyword::Require),
+            "external" => Some(Keyword::External),
+            "in" => Some(Keyword::In),
+            _ => None
+        }
+    }
+}
 
 
 fn is_can_start_ident(ch: char) -> bool {
